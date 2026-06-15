@@ -2,7 +2,8 @@ import { checkCollision, randomRange } from './utils.js';
 import { Player } from './player.js';
 import { Enemy, EnemySpawner } from './enemies.js';
 import { BulletManager } from './bullets.js';
-import { LEVELS, DIFFICULTY } from './config.js';
+import { ExperienceSystem } from './experience.js';
+import { LEVELS, DIFFICULTY, EXPERIENCE } from './config.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -19,17 +20,18 @@ let deltaTime = 0;
 
 let player = null;
 let enemies = [];
-let experienceOrbs = [];
 let particles = [];
 
 let bulletManager = null;
 let enemySpawner = null;
+let experienceSystem = null;
 let waveTimer = 0;
 let currentWave = 0;
 let currentLevel = 1;
 let difficulty = 'normal';
 let score = 0;
 let bossSpawned = false;
+let showingSkillSelection = false;
 
 function gameLoop(timestamp) {
     deltaTime = (timestamp - lastTime) / 1000;
@@ -47,6 +49,8 @@ function gameLoop(timestamp) {
 }
 
 function update(dt) {
+    if (showingSkillSelection) return;
+    
     if (player) {
         const newBullets = player.update(dt);
         if (newBullets && newBullets.length > 0) {
@@ -78,6 +82,11 @@ function update(dt) {
     const results = bulletManager.checkCollisions(enemies, player);
     
     results.enemiesHit.forEach(enemy => {
+        experienceSystem.addOrbs(
+            enemy.x + enemy.width / 2,
+            enemy.y + enemy.height / 2,
+            enemy.points
+        );
         score += enemy.points;
     });
     
@@ -85,6 +94,22 @@ function update(dt) {
         const dead = player.takeDamage(1);
         if (dead) {
             gameState = 'gameOver';
+        }
+    }
+    
+    if (player) {
+        const magnetRange = EXPERIENCE.orbMagnetRange + 
+            (player.skills.magnet || 0) * 30;
+        
+        const leveledUp = experienceSystem.update(
+            dt,
+            player.x + player.width / 2,
+            player.y + player.height / 2,
+            magnetRange
+        );
+        
+        if (leveledUp) {
+            showingSkillSelection = true;
         }
     }
     
@@ -109,10 +134,31 @@ function render() {
     
     bulletManager.render(ctx);
     
+    experienceSystem.render(ctx);
+    
+    renderHUD();
+}
+
+function renderHUD() {
+    if (!player) return;
+    
+    ctx.fillStyle = '#ff4757';
+    for (let i = 0; i < player.hp; i++) {
+        ctx.fillRect(10 + i * 25, 10, 20, 20);
+    }
+    
+    const xpProgress = experienceSystem.getXPProgress();
+    ctx.fillStyle = '#333';
+    ctx.fillRect(10, GAME_HEIGHT - 30, GAME_WIDTH - 20, 20);
+    ctx.fillStyle = '#2ed573';
+    ctx.fillRect(10, GAME_HEIGHT - 30, (GAME_WIDTH - 20) * xpProgress, 20);
+    
     ctx.fillStyle = '#fff';
     ctx.font = '14px monospace';
-    ctx.fillText(`Score: ${score}`, 10, 20);
-    ctx.fillText(`Wave: ${currentWave}`, 10, 40);
+    ctx.fillText(`Lv.${experienceSystem.currentLevel}`, 15, GAME_HEIGHT - 15);
+    
+    ctx.fillText(`Score: ${score}`, GAME_WIDTH - 100, 25);
+    ctx.fillText(`Wave: ${currentWave}`, GAME_WIDTH - 100, 45);
 }
 
 function startGame(diff) {
@@ -120,16 +166,17 @@ function startGame(diff) {
     difficulty = diff;
     player = new Player(diff);
     enemies = [];
-    experienceOrbs = [];
     particles = [];
     
     bulletManager = new BulletManager();
     enemySpawner = new EnemySpawner(diff);
+    experienceSystem = new ExperienceSystem(diff);
     currentWave = 0;
     waveTimer = 0;
     bossSpawned = false;
     currentLevel = 1;
     score = 0;
+    showingSkillSelection = false;
     
     startNextWave();
     console.log('Game started with difficulty:', diff);
