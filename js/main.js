@@ -5,6 +5,7 @@ import { BulletManager } from './bullets.js';
 import { ExperienceSystem } from './experience.js';
 import { SkillSystem, SkillSelectionUI } from './skills.js';
 import { Boss } from './boss.js';
+import { LevelManager } from './levels.js';
 import { LEVELS, DIFFICULTY, EXPERIENCE } from './config.js';
 
 const canvas = document.getElementById('gameCanvas');
@@ -30,6 +31,7 @@ let experienceSystem = null;
 let skillSystem = null;
 let skillSelectionUI = null;
 let currentBoss = null;
+let levelManager = null;
 let waveTimer = 0;
 let currentWave = 0;
 let currentLevel = 1;
@@ -89,11 +91,18 @@ function update(dt) {
             const pattern = currentBoss.getAttackPattern();
             const bossBullets = currentBoss.generateBullets(pattern);
             bossBullets.forEach(b => {
-                bulletManager.enemyBullets.push(new (bulletManager.enemyBullets[0]?.constructor || Object)({
-                    ...b,
+                bulletManager.enemyBullets.push({
+                    x: b.x,
+                    y: b.y,
+                    width: b.width,
+                    height: b.height,
                     speed: Math.sqrt(b.vx * b.vx + b.vy * b.vy),
-                    active: true
-                }));
+                    damage: b.damage,
+                    vx: b.vx,
+                    vy: b.vy,
+                    active: true,
+                    isHoming: false
+                });
             });
         }
         
@@ -111,6 +120,7 @@ function update(dt) {
                         gameState = 'victory';
                     } else {
                         currentLevel++;
+                        levelManager.loadLevel(currentLevel);
                         currentWave = 0;
                         bossSpawned = false;
                         currentBoss = null;
@@ -156,6 +166,10 @@ function update(dt) {
         }
     }
     
+    if (levelManager) {
+        levelManager.update(dt);
+    }
+    
     if (!enemySpawner.waveActive && enemies.length === 0 && !bossSpawned && !currentBoss) {
         waveTimer += dt;
         if (waveTimer >= 2) {
@@ -176,8 +190,12 @@ function triggerSkillSelection() {
 }
 
 function render() {
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    if (levelManager) {
+        levelManager.render(ctx);
+    } else {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    }
     
     if (player) {
         player.render(ctx);
@@ -235,6 +253,8 @@ function startGame(diff) {
     experienceSystem = new ExperienceSystem(diff);
     skillSystem = new SkillSystem();
     skillSelectionUI = new SkillSelectionUI();
+    levelManager = new LevelManager();
+    levelManager.loadLevel(1);
     currentBoss = null;
     currentWave = 0;
     waveTimer = 0;
