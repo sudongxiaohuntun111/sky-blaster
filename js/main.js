@@ -4,6 +4,7 @@ import { Enemy, EnemySpawner } from './enemies.js';
 import { BulletManager } from './bullets.js';
 import { ExperienceSystem } from './experience.js';
 import { SkillSystem, SkillSelectionUI } from './skills.js';
+import { Boss } from './boss.js';
 import { LEVELS, DIFFICULTY, EXPERIENCE } from './config.js';
 
 const canvas = document.getElementById('gameCanvas');
@@ -28,6 +29,7 @@ let enemySpawner = null;
 let experienceSystem = null;
 let skillSystem = null;
 let skillSelectionUI = null;
+let currentBoss = null;
 let waveTimer = 0;
 let currentWave = 0;
 let currentLevel = 1;
@@ -80,6 +82,44 @@ function update(dt) {
     
     enemies = enemies.filter(e => e.active);
     
+    if (currentBoss && currentBoss.active) {
+        currentBoss.update(dt, player ? player.x : 0, player ? player.y : 0);
+        
+        if (currentBoss.canAttack()) {
+            const pattern = currentBoss.getAttackPattern();
+            const bossBullets = currentBoss.generateBullets(pattern);
+            bossBullets.forEach(b => {
+                bulletManager.enemyBullets.push(new (bulletManager.enemyBullets[0]?.constructor || Object)({
+                    ...b,
+                    speed: Math.sqrt(b.vx * b.vx + b.vy * b.vy),
+                    active: true
+                }));
+            });
+        }
+        
+        bulletManager.playerBullets.forEach(bullet => {
+            if (!bullet.active || !currentBoss.active) return;
+            
+            if (bulletManager.checkOverlap(bullet, currentBoss)) {
+                bullet.active = false;
+                const defeated = currentBoss.takeDamage(bullet.damage);
+                
+                if (defeated) {
+                    score += 500;
+                    
+                    if (currentLevel >= 3) {
+                        gameState = 'victory';
+                    } else {
+                        currentLevel++;
+                        currentWave = 0;
+                        bossSpawned = false;
+                        currentBoss = null;
+                    }
+                }
+            }
+        });
+    }
+    
     bulletManager.update(dt, enemies);
     
     const results = bulletManager.checkCollisions(enemies, player);
@@ -116,7 +156,7 @@ function update(dt) {
         }
     }
     
-    if (!enemySpawner.waveActive && enemies.length === 0 && !bossSpawned) {
+    if (!enemySpawner.waveActive && enemies.length === 0 && !bossSpawned && !currentBoss) {
         waveTimer += dt;
         if (waveTimer >= 2) {
             waveTimer = 0;
@@ -144,6 +184,10 @@ function render() {
     }
     
     enemies.forEach(enemy => enemy.render(ctx));
+    
+    if (currentBoss && currentBoss.active) {
+        currentBoss.render(ctx);
+    }
     
     bulletManager.render(ctx);
     
@@ -176,6 +220,7 @@ function renderHUD() {
     
     ctx.fillText(`Score: ${score}`, GAME_WIDTH - 100, 25);
     ctx.fillText(`Wave: ${currentWave}`, GAME_WIDTH - 100, 45);
+    ctx.fillText(`Level: ${currentLevel}`, GAME_WIDTH - 100, 65);
 }
 
 function startGame(diff) {
@@ -190,6 +235,7 @@ function startGame(diff) {
     experienceSystem = new ExperienceSystem(diff);
     skillSystem = new SkillSystem();
     skillSelectionUI = new SkillSelectionUI();
+    currentBoss = null;
     currentWave = 0;
     waveTimer = 0;
     bossSpawned = false;
@@ -211,7 +257,15 @@ function startNextWave() {
             levelConfig.enemyTypes,
             DIFFICULTY[difficulty].enemySpawnMultiplier
         );
+    } else if (!bossSpawned && !currentBoss) {
+        spawnBoss();
     }
+}
+
+function spawnBoss() {
+    bossSpawned = true;
+    const levelConfig = LEVELS[currentLevel - 1];
+    currentBoss = new Boss(levelConfig.bossKey, DIFFICULTY[difficulty]);
 }
 
 const keys = {};
