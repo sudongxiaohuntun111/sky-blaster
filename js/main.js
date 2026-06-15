@@ -3,6 +3,7 @@ import { Player } from './player.js';
 import { Enemy, EnemySpawner } from './enemies.js';
 import { BulletManager } from './bullets.js';
 import { ExperienceSystem } from './experience.js';
+import { SkillSystem, SkillSelectionUI } from './skills.js';
 import { LEVELS, DIFFICULTY, EXPERIENCE } from './config.js';
 
 const canvas = document.getElementById('gameCanvas');
@@ -25,6 +26,8 @@ let particles = [];
 let bulletManager = null;
 let enemySpawner = null;
 let experienceSystem = null;
+let skillSystem = null;
+let skillSelectionUI = null;
 let waveTimer = 0;
 let currentWave = 0;
 let currentLevel = 1;
@@ -109,7 +112,7 @@ function update(dt) {
         );
         
         if (leveledUp) {
-            showingSkillSelection = true;
+            triggerSkillSelection();
         }
     }
     
@@ -120,6 +123,16 @@ function update(dt) {
             startNextWave();
         }
     }
+}
+
+function triggerSkillSelection() {
+    showingSkillSelection = true;
+    const availableSkills = skillSystem.getRandomSkills(3);
+    skillSelectionUI.show(availableSkills, (skillId) => {
+        skillSystem.selectSkill(skillId);
+        player.addSkill(skillId);
+        showingSkillSelection = false;
+    });
 }
 
 function render() {
@@ -137,6 +150,10 @@ function render() {
     experienceSystem.render(ctx);
     
     renderHUD();
+    
+    if (showingSkillSelection) {
+        skillSelectionUI.render(ctx, GAME_WIDTH, GAME_HEIGHT);
+    }
 }
 
 function renderHUD() {
@@ -171,6 +188,8 @@ function startGame(diff) {
     bulletManager = new BulletManager();
     enemySpawner = new EnemySpawner(diff);
     experienceSystem = new ExperienceSystem(diff);
+    skillSystem = new SkillSystem();
+    skillSelectionUI = new SkillSelectionUI();
     currentWave = 0;
     waveTimer = 0;
     bossSpawned = false;
@@ -198,6 +217,11 @@ function startNextWave() {
 const keys = {};
 document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
+    
+    if (showingSkillSelection) {
+        skillSelectionUI.handleInput(e.key);
+        return;
+    }
     
     if (gameState === 'menu') {
         if (e.key === '1') startGame('easy');
