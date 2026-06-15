@@ -6,6 +6,7 @@ import { ExperienceSystem } from './experience.js';
 import { SkillSystem, SkillSelectionUI } from './skills.js';
 import { Boss } from './boss.js';
 import { LevelManager } from './levels.js';
+import { ParticleSystem } from './particles.js';
 import { LEVELS, DIFFICULTY, EXPERIENCE } from './config.js';
 
 const canvas = document.getElementById('gameCanvas');
@@ -23,7 +24,6 @@ let deltaTime = 0;
 
 let player = null;
 let enemies = [];
-let particles = [];
 
 let bulletManager = null;
 let enemySpawner = null;
@@ -32,6 +32,7 @@ let skillSystem = null;
 let skillSelectionUI = null;
 let currentBoss = null;
 let levelManager = null;
+let particleSystem = null;
 let waveTimer = 0;
 let currentWave = 0;
 let currentLevel = 1;
@@ -63,6 +64,11 @@ function update(dt) {
         if (newBullets && newBullets.length > 0) {
             newBullets.forEach(b => bulletManager.addPlayerBullet(b));
         }
+        
+        particleSystem.createEngineTrail(
+            player.x + player.width / 2,
+            player.y + player.height
+        );
     }
     
     if (enemySpawner) {
@@ -114,6 +120,11 @@ function update(dt) {
                 const defeated = currentBoss.takeDamage(bullet.damage);
                 
                 if (defeated) {
+                    particleSystem.createExplosion(
+                        currentBoss.x + currentBoss.width / 2,
+                        currentBoss.y + currentBoss.height / 2,
+                        50
+                    );
                     score += 500;
                     
                     if (currentLevel >= 3) {
@@ -135,6 +146,11 @@ function update(dt) {
     const results = bulletManager.checkCollisions(enemies, player);
     
     results.enemiesHit.forEach(enemy => {
+        particleSystem.createExplosion(
+            enemy.x + enemy.width / 2,
+            enemy.y + enemy.height / 2,
+            15
+        );
         experienceSystem.addOrbs(
             enemy.x + enemy.width / 2,
             enemy.y + enemy.height / 2,
@@ -169,6 +185,8 @@ function update(dt) {
     if (levelManager) {
         levelManager.update(dt);
     }
+    
+    particleSystem.update(dt);
     
     if (!enemySpawner.waveActive && enemies.length === 0 && !bossSpawned && !currentBoss) {
         waveTimer += dt;
@@ -211,6 +229,8 @@ function render() {
     
     experienceSystem.render(ctx);
     
+    particleSystem.render(ctx);
+    
     renderHUD();
     
     if (showingSkillSelection) {
@@ -246,7 +266,6 @@ function startGame(diff) {
     difficulty = diff;
     player = new Player(diff);
     enemies = [];
-    particles = [];
     
     bulletManager = new BulletManager();
     enemySpawner = new EnemySpawner(diff);
@@ -255,6 +274,7 @@ function startGame(diff) {
     skillSelectionUI = new SkillSelectionUI();
     levelManager = new LevelManager();
     levelManager.loadLevel(1);
+    particleSystem = new ParticleSystem();
     currentBoss = null;
     currentWave = 0;
     waveTimer = 0;
