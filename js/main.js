@@ -1,4 +1,5 @@
 import { checkCollision, randomRange } from './utils.js';
+import { Player } from './player.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -35,16 +36,31 @@ function gameLoop(timestamp) {
 }
 
 function update(dt) {
+    if (player) {
+        const newBullets = player.update(dt);
+        if (newBullets && newBullets.length > 0) {
+            bullets.push(...newBullets);
+        }
+    }
 }
 
 function render() {
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    
+    if (player) {
+        player.render(ctx);
+    }
 }
 
 function startGame(difficulty) {
     gameState = 'playing';
-    console.log('Game started with difficulty:', difficulty);
+    player = new Player(difficulty);
+    enemies = [];
+    bullets = [];
+    experienceOrbs = [];
+    particles = [];
+    console.log('Player created with HP:', player.hp);
 }
 
 const keys = {};
