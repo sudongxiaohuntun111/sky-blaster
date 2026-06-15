@@ -1,5 +1,7 @@
 import { checkCollision, randomRange } from './utils.js';
 import { Player } from './player.js';
+import { Enemy, EnemySpawner } from './enemies.js';
+import { LEVELS, DIFFICULTY } from './config.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -19,6 +21,14 @@ let enemies = [];
 let bullets = [];
 let experienceOrbs = [];
 let particles = [];
+
+let enemySpawner = null;
+let waveTimer = 0;
+let currentWave = 0;
+let currentLevel = 1;
+let difficulty = 'normal';
+let score = 0;
+let bossSpawned = false;
 
 function gameLoop(timestamp) {
     deltaTime = (timestamp - lastTime) / 1000;
@@ -42,6 +52,24 @@ function update(dt) {
             bullets.push(...newBullets);
         }
     }
+    
+    if (enemySpawner) {
+        enemySpawner.update(dt, enemies);
+    }
+    
+    enemies.forEach(enemy => {
+        enemy.update(dt, player ? player.x : 0, player ? player.y : 0);
+    });
+    
+    enemies = enemies.filter(e => e.active);
+    
+    if (!enemySpawner.waveActive && enemies.length === 0 && !bossSpawned) {
+        waveTimer += dt;
+        if (waveTimer >= 2) {
+            waveTimer = 0;
+            startNextWave();
+        }
+    }
 }
 
 function render() {
@@ -51,16 +79,46 @@ function render() {
     if (player) {
         player.render(ctx);
     }
+    
+    enemies.forEach(enemy => enemy.render(ctx));
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px monospace';
+    ctx.fillText(`Score: ${score}`, 10, 20);
+    ctx.fillText(`Wave: ${currentWave}`, 10, 40);
 }
 
-function startGame(difficulty) {
+function startGame(diff) {
     gameState = 'playing';
-    player = new Player(difficulty);
+    difficulty = diff;
+    player = new Player(diff);
     enemies = [];
     bullets = [];
     experienceOrbs = [];
     particles = [];
-    console.log('Player created with HP:', player.hp);
+    
+    enemySpawner = new EnemySpawner(diff);
+    currentWave = 0;
+    waveTimer = 0;
+    bossSpawned = false;
+    currentLevel = 1;
+    score = 0;
+    
+    startNextWave();
+    console.log('Game started with difficulty:', diff);
+}
+
+function startNextWave() {
+    currentWave++;
+    const levelConfig = LEVELS[currentLevel - 1];
+    
+    if (currentWave <= levelConfig.waves) {
+        enemySpawner.startWave(
+            currentWave,
+            levelConfig.enemyTypes,
+            DIFFICULTY[difficulty].enemySpawnMultiplier
+        );
+    }
 }
 
 const keys = {};
