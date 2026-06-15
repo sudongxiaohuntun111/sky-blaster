@@ -7,6 +7,7 @@ import { SkillSystem, SkillSelectionUI } from './skills.js';
 import { Boss } from './boss.js';
 import { LevelManager } from './levels.js';
 import { ParticleSystem } from './particles.js';
+import { AudioSystem } from './audio.js';
 import { LEVELS, DIFFICULTY, EXPERIENCE } from './config.js';
 
 const canvas = document.getElementById('gameCanvas');
@@ -33,6 +34,7 @@ let skillSelectionUI = null;
 let currentBoss = null;
 let levelManager = null;
 let particleSystem = null;
+let audioSystem = null;
 let waveTimer = 0;
 let currentWave = 0;
 let currentLevel = 1;
@@ -62,7 +64,10 @@ function update(dt) {
     if (player) {
         const newBullets = player.update(dt);
         if (newBullets && newBullets.length > 0) {
-            newBullets.forEach(b => bulletManager.addPlayerBullet(b));
+            newBullets.forEach(b => {
+                bulletManager.addPlayerBullet(b);
+                audioSystem.playShoot();
+            });
         }
         
         particleSystem.createEngineTrail(
@@ -125,9 +130,11 @@ function update(dt) {
                         currentBoss.y + currentBoss.height / 2,
                         50
                     );
+                    audioSystem.playExplosion();
                     score += 500;
                     
                     if (currentLevel >= 3) {
+                        audioSystem.playVictory();
                         gameState = 'victory';
                     } else {
                         currentLevel++;
@@ -151,6 +158,7 @@ function update(dt) {
             enemy.y + enemy.height / 2,
             15
         );
+        audioSystem.playExplosion();
         experienceSystem.addOrbs(
             enemy.x + enemy.width / 2,
             enemy.y + enemy.height / 2,
@@ -178,6 +186,7 @@ function update(dt) {
         );
         
         if (leveledUp) {
+            audioSystem.playLevelUp();
             triggerSkillSelection();
         }
     }
@@ -275,6 +284,8 @@ function startGame(diff) {
     levelManager = new LevelManager();
     levelManager.loadLevel(1);
     particleSystem = new ParticleSystem();
+    audioSystem = new AudioSystem();
+    audioSystem.init();
     currentBoss = null;
     currentWave = 0;
     waveTimer = 0;
@@ -298,6 +309,7 @@ function startNextWave() {
             DIFFICULTY[difficulty].enemySpawnMultiplier
         );
     } else if (!bossSpawned && !currentBoss) {
+        audioSystem.playBossWarning();
         spawnBoss();
     }
 }
@@ -327,6 +339,10 @@ document.addEventListener('keydown', (e) => {
         gameState = 'paused';
     } else if (e.key === 'Escape' && gameState === 'paused') {
         gameState = 'playing';
+    }
+    
+    if (e.key === 'm' || e.key === 'M') {
+        audioSystem.toggleSound();
     }
 });
 
