@@ -8,6 +8,7 @@ import { Boss } from './boss.js';
 import { LevelManager } from './levels.js';
 import { ParticleSystem } from './particles.js';
 import { AudioSystem } from './audio.js';
+import { MainMenu, PauseMenu, GameOverScreen, VictoryScreen } from './ui.js';
 import { LEVELS, DIFFICULTY, EXPERIENCE } from './config.js';
 
 const canvas = document.getElementById('gameCanvas');
@@ -35,6 +36,10 @@ let currentBoss = null;
 let levelManager = null;
 let particleSystem = null;
 let audioSystem = null;
+let mainMenu = null;
+let pauseMenu = null;
+let gameOverScreen = null;
+let victoryScreen = null;
 let waveTimer = 0;
 let currentWave = 0;
 let currentLevel = 1;
@@ -51,6 +56,10 @@ function gameLoop(timestamp) {
     
     if (gameState === 'playing') {
         update(deltaTime);
+    }
+    
+    if (mainMenu) {
+        mainMenu.update(deltaTime);
     }
     
     render();
@@ -135,6 +144,7 @@ function update(dt) {
                     
                     if (currentLevel >= 3) {
                         audioSystem.playVictory();
+                        victoryScreen = new VictoryScreen(score, 0, skillSystem.selectedSkills);
                         gameState = 'victory';
                     } else {
                         currentLevel++;
@@ -170,6 +180,7 @@ function update(dt) {
     if (results.playerHit && player) {
         const dead = player.takeDamage(1);
         if (dead) {
+            gameOverScreen = new GameOverScreen(score, currentLevel, skillSystem.selectedSkills);
             gameState = 'gameOver';
         }
     }
@@ -217,33 +228,60 @@ function triggerSkillSelection() {
 }
 
 function render() {
-    if (levelManager) {
-        levelManager.render(ctx);
-    } else {
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    }
-    
-    if (player) {
-        player.render(ctx);
-    }
-    
-    enemies.forEach(enemy => enemy.render(ctx));
-    
-    if (currentBoss && currentBoss.active) {
-        currentBoss.render(ctx);
-    }
-    
-    bulletManager.render(ctx);
-    
-    experienceSystem.render(ctx);
-    
-    particleSystem.render(ctx);
-    
-    renderHUD();
-    
-    if (showingSkillSelection) {
-        skillSelectionUI.render(ctx, GAME_WIDTH, GAME_HEIGHT);
+    switch (gameState) {
+        case 'menu':
+            if (mainMenu) {
+                mainMenu.render(ctx);
+            }
+            break;
+            
+        case 'playing':
+        case 'paused':
+            if (levelManager) {
+                levelManager.render(ctx);
+            } else {
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            }
+            
+            if (player) {
+                player.render(ctx);
+            }
+            
+            enemies.forEach(enemy => enemy.render(ctx));
+            
+            if (currentBoss && currentBoss.active) {
+                currentBoss.render(ctx);
+            }
+            
+            bulletManager.render(ctx);
+            
+            experienceSystem.render(ctx);
+            
+            particleSystem.render(ctx);
+            
+            renderHUD();
+            
+            if (showingSkillSelection) {
+                skillSelectionUI.render(ctx, GAME_WIDTH, GAME_HEIGHT);
+            }
+            
+            if (gameState === 'paused' && pauseMenu) {
+                pauseMenu.render(ctx);
+            }
+            break;
+            
+        case 'gameOver':
+            if (gameOverScreen) {
+                gameOverScreen.render(ctx);
+            }
+            break;
+            
+        case 'victory':
+            if (victoryScreen) {
+                victoryScreen.render(ctx);
+            }
+            break;
     }
 }
 
@@ -320,29 +358,73 @@ function spawnBoss() {
     currentBoss = new Boss(levelConfig.bossKey, DIFFICULTY[difficulty]);
 }
 
+mainMenu = new MainMenu();
+
 const keys = {};
 document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
     
-    if (showingSkillSelection) {
-        skillSelectionUI.handleInput(e.key);
-        return;
-    }
-    
-    if (gameState === 'menu') {
-        if (e.key === '1') startGame('easy');
-        if (e.key === '2') startGame('normal');
-        if (e.key === '3') startGame('hard');
-    }
-    
-    if (e.key === 'Escape' && gameState === 'playing') {
-        gameState = 'paused';
-    } else if (e.key === 'Escape' && gameState === 'paused') {
-        gameState = 'playing';
+    switch (gameState) {
+        case 'menu':
+            const difficulty = mainMenu.handleInput(e.key);
+            if (difficulty) {
+                startGame(difficulty);
+            }
+            break;
+            
+        case 'playing':
+            if (showingSkillSelection) {
+                skillSelectionUI.handleInput(e.key);
+                return;
+            }
+            
+            if (e.key === 'Escape') {
+                pauseMenu = new PauseMenu();
+                gameState = 'paused';
+            }
+            break;
+            
+        case 'paused':
+            if (pauseMenu) {
+                const result = pauseMenu.handleInput(e.key);
+                if (result === 'resume') {
+                    gameState = 'playing';
+                } else if (result === 'menu') {
+                    mainMenu = new MainMenu();
+                    gameState = 'menu';
+                }
+            }
+            break;
+            
+        case 'gameOver':
+            if (gameOverScreen) {
+                const result = gameOverScreen.handleInput(e.key);
+                if (result === 'restart') {
+                    startGame(difficulty);
+                } else if (result === 'menu') {
+                    mainMenu = new MainMenu();
+                    gameState = 'menu';
+                }
+            }
+            break;
+            
+        case 'victory':
+            if (victoryScreen) {
+                const result = victoryScreen.handleInput(e.key);
+                if (result === 'restart') {
+                    startGame(difficulty);
+                } else if (result === 'menu') {
+                    mainMenu = new MainMenu();
+                    gameState = 'menu';
+                }
+            }
+            break;
     }
     
     if (e.key === 'm' || e.key === 'M') {
-        audioSystem.toggleSound();
+        if (audioSystem) {
+            audioSystem.toggleSound();
+        }
     }
 });
 
