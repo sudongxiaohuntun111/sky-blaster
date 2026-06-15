@@ -1,6 +1,7 @@
 import { checkCollision, randomRange } from './utils.js';
 import { Player } from './player.js';
 import { Enemy, EnemySpawner } from './enemies.js';
+import { BulletManager } from './bullets.js';
 import { LEVELS, DIFFICULTY } from './config.js';
 
 const canvas = document.getElementById('gameCanvas');
@@ -18,10 +19,10 @@ let deltaTime = 0;
 
 let player = null;
 let enemies = [];
-let bullets = [];
 let experienceOrbs = [];
 let particles = [];
 
+let bulletManager = null;
 let enemySpawner = null;
 let waveTimer = 0;
 let currentWave = 0;
@@ -49,7 +50,7 @@ function update(dt) {
     if (player) {
         const newBullets = player.update(dt);
         if (newBullets && newBullets.length > 0) {
-            bullets.push(...newBullets);
+            newBullets.forEach(b => bulletManager.addPlayerBullet(b));
         }
     }
     
@@ -59,9 +60,33 @@ function update(dt) {
     
     enemies.forEach(enemy => {
         enemy.update(dt, player ? player.x : 0, player ? player.y : 0);
+        
+        if (enemy.canShoot() && player) {
+            bulletManager.addEnemyBullet(
+                enemy.x + enemy.width / 2,
+                enemy.y + enemy.height,
+                enemy.bulletSpeed,
+                1
+            );
+        }
     });
     
     enemies = enemies.filter(e => e.active);
+    
+    bulletManager.update(dt, enemies);
+    
+    const results = bulletManager.checkCollisions(enemies, player);
+    
+    results.enemiesHit.forEach(enemy => {
+        score += enemy.points;
+    });
+    
+    if (results.playerHit && player) {
+        const dead = player.takeDamage(1);
+        if (dead) {
+            gameState = 'gameOver';
+        }
+    }
     
     if (!enemySpawner.waveActive && enemies.length === 0 && !bossSpawned) {
         waveTimer += dt;
@@ -82,6 +107,8 @@ function render() {
     
     enemies.forEach(enemy => enemy.render(ctx));
     
+    bulletManager.render(ctx);
+    
     ctx.fillStyle = '#fff';
     ctx.font = '14px monospace';
     ctx.fillText(`Score: ${score}`, 10, 20);
@@ -93,10 +120,10 @@ function startGame(diff) {
     difficulty = diff;
     player = new Player(diff);
     enemies = [];
-    bullets = [];
     experienceOrbs = [];
     particles = [];
     
+    bulletManager = new BulletManager();
     enemySpawner = new EnemySpawner(diff);
     currentWave = 0;
     waveTimer = 0;
