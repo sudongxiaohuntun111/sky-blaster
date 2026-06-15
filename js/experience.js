@@ -1,4 +1,4 @@
-import { GAME_WIDTH, GAME_HEIGHT } from './main.js';
+import { GAME_WIDTH, GAME_HEIGHT } from './game.js';
 import { EXPERIENCE } from './config.js';
 import { distance, randomRange } from './utils.js';
 

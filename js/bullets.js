@@ -1,4 +1,4 @@
-import { GAME_HEIGHT, GAME_WIDTH } from './main.js';
+import { GAME_HEIGHT, GAME_WIDTH } from './game.js';
 import { PLAYER } from './config.js';
 import { distance, angleBetween } from './utils.js';
 

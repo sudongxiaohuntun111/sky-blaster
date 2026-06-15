@@ -1,4 +1,4 @@
-import { GAME_WIDTH, GAME_HEIGHT } from './main.js';
+import { GAME_WIDTH, GAME_HEIGHT } from './game.js';
 import { DIFFICULTY } from './config.js';
 
 export class MainMenu {

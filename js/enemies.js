@@ -1,5 +1,5 @@
 import { ENEMIES, LEVELS } from './config.js';
-import { GAME_WIDTH, GAME_HEIGHT } from './main.js';
+import { GAME_WIDTH, GAME_HEIGHT } from './game.js';
 import { randomRange, randomInt } from './utils.js';
 
 export class Enemy {

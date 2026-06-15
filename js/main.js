@@ -10,15 +10,17 @@ import { ParticleSystem } from './particles.js';
 import { AudioSystem } from './audio.js';
 import { MainMenu, PauseMenu, GameOverScreen, VictoryScreen } from './ui.js';
 import { LEVELS, DIFFICULTY, EXPERIENCE } from './config.js';
+import {
+    initCanvas, getCanvas, getCtx, getKeys,
+    handleKeyDown, handleKeyUp, getGameState, setGameState,
+    GAME_WIDTH, GAME_HEIGHT
+} from './game.js';
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+initCanvas();
 
-const GAME_WIDTH = 400;
-const GAME_HEIGHT = 600;
-
-canvas.width = GAME_WIDTH;
-canvas.height = GAME_HEIGHT;
+const canvas = getCanvas();
+const ctx = getCtx();
+const keys = getKeys();
 
 let gameState = 'menu';
 let lastTime = 0;
@@ -360,15 +362,14 @@ function spawnBoss() {
 
 mainMenu = new MainMenu();
 
-const keys = {};
 document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
     
     switch (gameState) {
         case 'menu':
-            const difficulty = mainMenu.handleInput(e.key);
-            if (difficulty) {
-                startGame(difficulty);
+            const selectedDifficulty = mainMenu.handleInput(e.key);
+            if (selectedDifficulty) {
+                startGame(selectedDifficulty);
             }
             break;
             
@@ -431,8 +432,6 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
     keys[e.key] = false;
 });
-
-export { canvas, ctx, keys, gameState, GAME_WIDTH, GAME_HEIGHT };
 
 requestAnimationFrame(gameLoop);
 console.log('Sky Blaster loaded. Press 1/2/3 to start.');

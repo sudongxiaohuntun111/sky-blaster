@@ -1,6 +1,8 @@
-import { canvas, keys, GAME_WIDTH, GAME_HEIGHT } from './main.js';
+import { GAME_WIDTH, GAME_HEIGHT, getKeys } from './game.js';
 import { PLAYER, DIFFICULTY } from './config.js';
 import { clamp } from './utils.js';
+
+const keys = getKeys();
 
 export class Player {
     constructor(difficulty) {

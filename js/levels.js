@@ -1,5 +1,5 @@
 import { LEVELS } from './config.js';
-import { GAME_WIDTH, GAME_HEIGHT } from './main.js';
+import { GAME_WIDTH, GAME_HEIGHT } from './game.js';
 
 export class LevelManager {
     constructor() {
